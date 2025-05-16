@@ -1,0 +1,1045 @@
+{
+  "name": "Bitovi Blog AI Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $('Clean and Prepare Article Data JSON').item.json.markdown_content }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "url",
+                "value": "={{ $('Clean and Prepare Article Data JSON').item.json.url }}"
+              },
+              {
+                "name": "title",
+                "value": "={{ $('Clean and Prepare Article Data JSON').item.json.title }}"
+              },
+              {
+                "name": "author_name",
+                "value": "={{ $('Clean and Prepare Article Data JSON').item.json.author_name }}"
+              },
+              {
+                "name": "topics",
+                "value": "={{ $('Clean and Prepare Article Data JSON').item.json.topics }}"
+              },
+              {
+                "name": "datePublished",
+                "value": "={{ $('Clean and Prepare Article Data JSON').item.json.datePublished }}"
+              },
+              {
+                "name": "dateModified",
+                "value": "={{ $('Clean and Prepare Article Data JSON').item.json.dateModified }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        1120
+      ],
+      "id": "e78865b0-d8c1-4acc-b8c1-1907f947c7ed",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "chunkSize": 2000,
+        "chunkOverlap": 180,
+        "options": {
+          "splitCode": "markdown"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        1280
+      ],
+      "id": "16912a41-8016-4d3f-ae08-dafef06b6f82",
+      "name": "Recursive Character Text Splitter"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -700,
+        1200
+      ],
+      "id": "3884cb15-c2c8-4344-844b-f67c38a3ca31",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "iDYiKj2i4uFXsnyF",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1bceaa5d-bf69-41a4-9c3f-9457af6f8c4c",
+              "name": "url",
+              "value": "={{ $json.loc }}",
+              "type": "string"
+            },
+            {
+              "id": "ce5f90dd-f749-49c3-a46a-85d88aaa2122",
+              "name": "lastModifiedSitemap",
+              "value": "={{ $json.lastmod }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -640,
+        280
+      ],
+      "id": "314c850e-f8fc-420e-ae6d-e931d4cf82f4",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8063c184-4406-44ed-81a9-89a24e2f1330",
+              "leftValue": "={{ $json.loc }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "43e00682-ff4e-4ad5-bc3d-182180359c96",
+              "leftValue": "={{ $json.loc }}",
+              "rightValue": "https://www.bitovi.com/blog/",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "99753311-7fdc-4571-bd59-d757b9a5600a",
+              "leftValue": "={{ $json.loc }}",
+              "rightValue": "https://www.bitovi.com/blog/stealjs-script-manager",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -900,
+        420
+      ],
+      "id": "73d47ef5-9c59-4727-bf91-1aa035efca1e",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a helpful and knowledgeable AI assistant. Your primary purpose is to answer questions accurately and concisely based *exclusively* on the content of Bitovi's blog articles.\n\n**Core Directives:**\n\n1.  **Grounding:** ALL your answers MUST be grounded in the information retrieved from Bitovi's blog articles using the provided tools. Do not use any external knowledge or make assumptions beyond the retrieved content.\n2.  **Tool Usage:** You have access to specialized tools to find information. Analyze the user's query carefully to determine the most appropriate tool or sequence of tools to use.\n3.  **Conciseness & Relevance:** Provide answers that are concise and directly address the user's question. Avoid unnecessary verbosity.\n4.  **Reference Links:** For every piece of information you provide that comes from a specific blog article, you MUST include a reference link (URL) to the original blog post. If multiple articles contribute to an answer, cite all relevant URLs. Format links clearly.\n5.  **Clarification:** If a user's query is ambiguous or if you need more information to choose the correct tool or parameters, ask clarifying questions.\n6.  **Honesty:** If you cannot find the answer within Bitovi's blog articles using the provided tools, clearly state that the information is not available in the blog content. Do not invent answers.\n7.  **SQL Generation (for `Query Metadata` tool):** When using the `Query Metadata` tool, generate precise SQL queries based on the schema provided in that tool's description. Pay close attention to column names, table name (`blog_articles`), JSONB querying for `topics`, and the instruction to avoid selecting `markdown_content` for multiple rows. Only select the `markdown_content` column when it's for a single, specific article and the content is needed for summarization or direct quoting.\n\n**Available Tools & When to Use Them:**\n\n*   **`Vector Store Knowledgebase`:**\n    *   **Use When:** The user's question requires understanding the *meaning* or *context* within the blog articles, or when searching for specific phrases or concepts discussed in the *body* of the articles.\n    *   **Examples:** \"What tools does Bitovi recommend for E2E testing?\", \"How does Bitovi approach AI strategy?\", \"What are Bitovi's thoughts on server-side rendering?\"\n    *   **Input:** The user's natural language question or search query.\n\n*   **`Query Metadata`:**\n    *   **Use When:** The user's question is about specific *metadata* of blog articles such as titles, authors, publication dates, topics/tags, or counts of articles. This tool requires you to generate an SQL query.\n    *   **Schema Reminder (for your SQL generation):**\n        *   Table: `blog_articles`\n        *   Columns: `url` (TEXT, PK), `title` (TEXT), `author_name` (TEXT), `date_published` (TIMESTAMP), `date_modified` (TIMESTAMP), `topics` (JSONB - e.g., `WHERE topics @> '[\"DevOps\"]'`), `markdown_content` (TEXT - use sparingly for single articles).\n    *   **Examples:** \"What is Bitovi's latest blog post about?\" (You'll query for the latest, get its `markdown_content` and `url`, then summarize), \"Show me all Bitovi articles about DevOps.\", \"How many articles does Bitovi have about AI?\", \"List articles by Mick McGrath.\"\n    *   **Input:** An SQL query you construct.\n\n*   **`List Blog Topics`:**\n    *   **Use When:** You need to know the complete list of distinct topics available in the blog database, or if the user asks what topics Bitovi writes about. It is highly recommended to use this tool before querying by topic with `Query Blog Article Metadata`.\n    *   **Examples:** \"What topics are covered in the blog?\", \"Does Bitovi write about 'XYZ'?\" (you can use this tool to check if 'XYZ' is a listed topic).\n\n**Interaction Flow Example:**\n\n1.  User asks: \"What is Bitovi's latest blog post about?\"\n2.  My analysis: This requires the latest article's content for summarization. The `query_blog_article_database` tool is best for getting the latest article by `date_published` and its `markdown_content`.\n3.  Action: Use `query_blog_article_database` with SQL: `SELECT title, url, markdown_content FROM blog_articles ORDER BY date_published DESC LIMIT 1;`\n4.  Result from tool: `{title: \"...\", url: \"...\", markdown_content: \"...\"}`\n5.  My final step: Summarize the `markdown_content` and present it with the title and URL. \"Bitovi's latest blog post, '[Title]', is about [Summary]. You can read it here: [URL].\"\n\n**Interaction Flow Example 2:**\n\n1.  User asks: \"How many articles does Bitovi have about AI?\"\n2.  My analysis: I need to count articles by topic. The user said \"AI\". First, I must check the actual topic name in the database using `List Blog Topics` to ensure correct casing.\n3.  Action 1: Use `List Blog Topics`.\n4.  Result from tool: `[\"javascript\", \"ai\", \"performance\", \"DevOps\", \"AI Agents\", ...]` (Example output, assuming \"ai\" is present)\n5.  My analysis (post `List Blog Topics`): The database has a topic \"ai\" (lowercase). I will use this in my SQL.\n6.  Action 2: Use `Query Metadata` with SQL: `SELECT COUNT(*) AS article_count FROM blog_articles WHERE topics @> '[\"ai\"]';`\n7.  Result from tool: `{article_count: 15}` (Example output)\n8.  My final step: \"Bitovi has 15 articles on the topic 'ai'.\" (Optionally, if other closely related topics like \"AI Agents\" were found and relevant, you might offer to search for those too, or combine counts if appropriate and clear).\n\n**Answering Queries:**\nWhen you have the necessary information from the tools:\n- Synthesize it into a clear, helpful response.\n- If providing a list (e.g., of articles), format it readably.\n- Always remember to cite the source `url`(s)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -1100,
+        -300
+      ],
+      "id": "57bb65e9-813a-4e1b-8709-e5a79f30de76",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -1160,
+        -20
+      ],
+      "id": "8476cfb4-99a2-459c-be6e-fec1458aa27d",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "Oe9hfBFWx2gHKNW1",
+          "name": "Postgres account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -480,
+        -20
+      ],
+      "id": "798ab978-84db-4619-8b5d-d037040fdc22",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "id": "iDYiKj2i4uFXsnyF",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Blog Article Ingestion & Processing Pipeline",
+        "height": 1260,
+        "width": 1960,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2060,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "feebd315-d208-4c39-9227-2ddc136ddc1f",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Nodes to Set Up Database Tables",
+        "height": 380,
+        "width": 500,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2060,
+        -260
+      ],
+      "typeVersion": 1,
+      "id": "17cd92f4-cf3d-43eb-9c6f-0f80375bace1",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## RAG AI Agent & Tools",
+        "height": 500,
+        "width": 940
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1540,
+        -360
+      ],
+      "typeVersion": 1,
+      "id": "dce93349-2ed4-47c2-ba00-4fd5c1dbda7a",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Semantic Search Tool",
+        "height": 500,
+        "width": 480,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -580,
+        -360
+      ],
+      "typeVersion": 1,
+      "id": "0821988f-82a6-400a-8f5d-e7e7723e0ec5",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1980,
+        600
+      ],
+      "id": "2808dc0e-0356-4e59-8ecf-e7f9d54ceecb",
+      "name": "Schedule Trigger: Daily Blog Check"
+    },
+    {
+      "parameters": {
+        "url": "https://www.bitovi.com/sitemap.xml",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1700,
+        260
+      ],
+      "id": "2f2b45df-8fc3-446f-9275-cd0f9da7cae7",
+      "name": "HTTP: Fetch Bitovi Sitemap",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        -1440,
+        420
+      ],
+      "id": "70e33385-75c8-406d-b4d1-3f1beb4346e1",
+      "name": "Sitemap XML to JSON"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "urlset.url",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1180,
+        280
+      ],
+      "id": "fa08d8fc-fc56-47d5-88cc-0ca4e80b786d",
+      "name": "Split Out: Individual Blog URLs"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  input.url,\n  input.lastModifiedSitemap\nFROM (\n  SELECT \n    '{{$json[\"url\"]}}' AS url,\n    '{{$json[\"lastModifiedSitemap\"]}}' AS lastModifiedSitemap\n) AS input\nWHERE \n  NOT EXISTS (\n    SELECT 1 FROM blog_articles \n    WHERE url = '{{$json[\"url\"]}}'\n  )\n  OR \n  EXISTS (\n    SELECT 1 FROM blog_articles \n    WHERE url = '{{$json[\"url\"]}}'\n    AND TO_DATE('{{$json[\"lastModifiedSitemap\"]}}', 'YYYY-MM-DD') > date_modified::date\n  );",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -320,
+        420
+      ],
+      "id": "4381555c-bea8-43dc-bff8-d63c29e6e7b4",
+      "name": "Check New or Updated Articles (via Postgres)",
+      "executeOnce": false,
+      "credentials": {
+        "postgres": {
+          "id": "Oe9hfBFWx2gHKNW1",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 5,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1720,
+        880
+      ],
+      "id": "66f75971-1453-487a-8813-aa916e76775c",
+      "name": "HTTP: Fetch Blog Page HTML",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "url",
+              "cssSelector": "meta[property=\"og:url\"]",
+              "returnValue": "attribute",
+              "attribute": "content"
+            },
+            {
+              "key": "title",
+              "cssSelector": "meta[property=\"og:title\"]",
+              "returnValue": "attribute",
+              "attribute": "content"
+            },
+            {
+              "key": "main_content",
+              "cssSelector": "#hs_cos_wrapper_post_body",
+              "returnValue": "html"
+            },
+            {
+              "key": "jsonLDString",
+              "cssSelector": "script[type='application/ld+json']:contains(\\\"BlogPosting\\\")"
+            },
+            {
+              "key": "topics1",
+              "cssSelector": ".blog-post-header-image-wrapper a[href*=\"/blog/topic/\"]",
+              "returnArray": true
+            },
+            {
+              "key": "topics2",
+              "cssSelector": "a[href*=\"/blog/topic/\"][rel=\"tag\"]",
+              "skipSelectors": "img",
+              "returnArray": true
+            },
+            {
+              "key": "author_name",
+              "cssSelector": "div.h-14.flex.items-center p.text-\\[16px\\].font-bold"
+            }
+          ]
+        },
+        "options": {
+          "trimValues": true,
+          "cleanUpText": true
+        }
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        -1460,
+        760
+      ],
+      "id": "3490d639-d6a1-4441-80aa-564e9c7086f8",
+      "name": "Extract Content"
+    },
+    {
+      "parameters": {
+        "html": "={{ $json.main_content }}",
+        "destinationKey": "markdown_content",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        960
+      ],
+      "id": "e9ff194f-fdd7-4e16-b563-ac909617f14e",
+      "name": "Convert to Markdown",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1500,
+        1120
+      ],
+      "id": "ce0ddf90-4d00-4536-aff8-7984d3e831dc",
+      "name": "Error Logs"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1080,
+        1200
+      ],
+      "id": "0802e1b1-cf50-4e8b-b37b-532ed8c76225",
+      "name": "Error Logs1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO blog_articles\n(url, title, author_name, markdown_content, date_published, date_modified, topics, last_processed)\nVALUES\n(\n  $1,  -- url\n  $2,  -- title\n  $3,  -- author_name\n  $4,  -- markdown_content\n  TO_TIMESTAMP($5, 'YYYY-MM-DD HH24:MI:SS'), -- date_published\n  TO_TIMESTAMP($6, 'Month DD, YYYY, HH12:MI:SSPM'), -- date_modified\n  $7::jsonb, -- topics (parameter will be a JSON string)\n  NOW()\n)\nON CONFLICT (url)\nDO UPDATE SET\n  title = EXCLUDED.title,\n  author_name = EXCLUDED.author_name,\n  markdown_content = EXCLUDED.markdown_content,\n  date_published = EXCLUDED.date_published,\n  date_modified = EXCLUDED.date_modified,\n  topics = EXCLUDED.topics,\n  last_processed = NOW();",
+        "options": {
+          "queryReplacement": "={{\n  [\n    $json[\"url\"],\n    $json[\"title\"],\n    $json[\"author_name\"] ? $json[\"author_name\"] : null,\n    $json[\"markdown_content\"],\n    // Parameter $5: date_published\n    ((dp = $json[\"datePublished\"]) => {\n      if (dp == null) { // Handles undefined or null\n        return null;\n      }\n      if (typeof dp === 'string') {\n        // Check for the specific malformed pattern: YYYY-MM-DDHH:MM:SS (length 18)\n        if (dp.length === 18 && /^\\d{4}-\\d{2}-\\d{2}\\d{2}:\\d{2}:\\d{2}$/.test(dp)) {\n          // Insert the required space\n          return dp.substring(0, 10) + ' ' + dp.substring(10);\n        }\n        // If the date string uses 'T' as a separator (common in ISO 8601, e.g., \"2023-01-01T12:00:00\")\n        // replace 'T' with a space, as your TO_TIMESTAMP format expects a space.\n        if (dp.indexOf('T') === 10) {\n          return dp.replace('T', ' ');\n        }\n      }\n      // If it's already in the correct \"YYYY-MM-DD HH:MM:SS\" format, or another format\n      // that TO_TIMESTAMP might parse with this mask, or if it's not a string, return as is.\n      return dp;\n    })(),\n    // Parameter $6: date_modified (ensure this is also correctly formatted for its TO_TIMESTAMP mask)\n    $json[\"dateModified\"],\n    // Parameter $7: topics\n    JSON.stringify($json[\"topics\"])\n  ]\n}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -560,
+        640
+      ],
+      "id": "98942455-51a6-4cc4-ba59-e3eebc416518",
+      "name": "Postgres: Store/Update Blog Article",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "Oe9hfBFWx2gHKNW1",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "embeddingBatchSize": 25,
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.1,
+      "position": [
+        -740,
+        940
+      ],
+      "id": "a6caf415-d5c6-465d-9a33-9db8f6b70b63",
+      "name": "Store Chunks: Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "bbx9Ng0GYO8Jk8gY",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS blog_articles (\n    url TEXT PRIMARY KEY,\n    title TEXT,\n    author_name TEXT,\n    markdown_content TEXT,\n    date_published TIMESTAMP,\n    date_modified TIMESTAMP,\n    topics JSONB,\n    last_processed TIMESTAMP DEFAULT NOW()\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1980,
+        -120
+      ],
+      "id": "703f520a-477a-4ba2-8291-aeda489065ad",
+      "name": "Create Blog Articles Table",
+      "credentials": {
+        "postgres": {
+          "id": "Oe9hfBFWx2gHKNW1",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Enable the pgvector extension to work with embedding vectors\ncreate extension vector;\n\n-- Create a table to store your documents\ncreate table documents (\n  id bigserial primary key,\n  content text, -- corresponds to Document.pageContent\n  metadata jsonb, -- corresponds to Document.metadata\n  embedding vector(1536) -- 1536 works for OpenAI embeddings, change if needed\n);\n\n-- Create a function to search for documents\ncreate function match_documents (\n  query_embedding vector(1536),\n  match_count int default null,\n  filter jsonb DEFAULT '{}'\n) returns table (\n  id bigint,\n  content text,\n  metadata jsonb,\n  similarity float\n)\nlanguage plpgsql\nas $$\n#variable_conflict use_column\nbegin\n  return query\n  select\n    id,\n    content,\n    metadata,\n    1 - (documents.embedding <=> query_embedding) as similarity\n  from documents\n  where metadata @> filter\n  order by documents.embedding <=> query_embedding\n  limit match_count;\nend;\n$$;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1760,
+        -120
+      ],
+      "id": "7b36ae6d-b4f3-4a44-9327-ac753207936b",
+      "name": "Create Documents Table and Match Function",
+      "credentials": {
+        "postgres": {
+          "id": "Oe9hfBFWx2gHKNW1",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hi there!👋 How can I assist you today?",
+        "options": {
+          "loadPreviousSession": "notSupported"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1480,
+        -160
+      ],
+      "id": "c222e1fb-a437-4295-ba15-179077f404a5",
+      "name": "Webhook: Chat Input",
+      "webhookId": "f52e294f-6d46-4f97-9329-72ec3abbb0d6"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "documents",
+        "toolDescription": "RAG to look up information in the knowledgebase. Use this tool to search the content of Bitovi's blog articles for answers to questions based on meaning, context, or to find specific information within the articles. Provide the natural language question or search query as input. This is best for questions like 'What tools does Bitovi recommend for E2E testing?', 'How does Bitovi approach AI strategy?', or 'Find paragraphs mentioning LangGraph.'",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "topK": 8,
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.1,
+      "position": [
+        -420,
+        -220
+      ],
+      "id": "e82c89bf-d86b-4547-a71e-8f327aa72208",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "bbx9Ng0GYO8Jk8gY",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Bitovi Blog AI Agent - RAG Workflow\n\n**Author:** Nishanth Prasath\n\n## Overview\nThis n8n workflow implements an AI-powered agent using Retrieval-Augmented Generation (RAG) to answer questions based on Bitovi's blog articles. The system ingests, processes, and indexes blog content, enabling the AI agent to provide relevant and source-referenced answers.\n\n## Core Features\n*   **Automated Blog Ingestion:** Periodically fetches and processes new or updated articles from Bitovi's blog.\n*   **Dual Storage System:**\n    *   **PostgreSQL:** Stores structured article data in the `blog_articles` table.\n    *   **Supabase (pgvector):** Stores vector embeddings of article content chunks for semantic search.\n*   **Intelligent RAG Pipeline:**\n    *   **Semantic Search:** For contextual understanding and content-based queries.\n    *   **Text-to-SQL Querying:** For metadata-based queries against the PostgreSQL database.\n    *   **Topic Discovery:** Tool to list all unique blog topics for query assistance.\n*   **Grounded & Referenced Responses:** Answers are derived from blog content and include source URLs.\n\n## Workflow Structure\n\n**I. Article Ingestion & Processing:**\n   1.  **Fetch & Filter URLs:** Identifies new/updated articles from the Bitovi sitemap.\n   2.  **Process & Store Content:** Fetches article HTML, converts to Markdown, extracts metadata, and stores in PostgreSQL (`blog_articles`).\n   3.  **Index for Vector Search:** Chunks Markdown content, generates OpenAI embeddings, and stores them in the Supabase vector database.\n\n**II. RAG AI Agent Interface:**\n   - **Input:** Receives user questions via a Webhook.\n   - **Memory:** Utilizes OpenAI Chat Memory for conversation context.\n   - **Agent Logic:** The main \"RAG AI Agent\" node interprets queries, selects appropriate tools, and generates responses.\n   - **Tools Provided to Agent:**\n     1.  `Supabase Vectore Store` (Supabase Vector Store)\n     2.  `Query Metadata` (PostgreSQL Text-to-SQL)\n     3.  `List Blog Topics` (PostgreSQL)\n   - **Output:** Delivers a grounded answer with source references.\n\n## Setup & Testing\n\n1.  **Prerequisites:**\n    - Configure n8n credentials for PostgreSQL, Supabase, and OpenAI.\n    - Ensure PostgreSQL and Supabase (with pgvector) are operational.\n    - Run database setup nodes.\n2.  **Ingestion:**\n    - Trigger manually via the \"Schedule Trigger\" or allow scheduled execution.\n3.  **Querying the Agent:**\n    - Send a `POST` request to the \"Chat Webhook\" endpoint.",
+        "height": 1540,
+        "width": 460,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2560,
+        -220
+      ],
+      "typeVersion": 1,
+      "id": "87e97aa8-bef7-491d-a1d1-5953d8be2a70",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to get a distinct list of all topics/tags currently present in the Bitovi blog articles database. It is highly recommended to use this tool before querying by topic with the `Query Metadata` tool, if there's any doubt about the exact topic phrasing or casing because of case sensitivity. This is useful if you need to know what topics are available for filtering or if the user asks what topics Bitovi writes about. The tool returns a list of topic strings.",
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT unnest_topic AS topic\nFROM blog_articles, jsonb_array_elements_text(topics) AS unnest_topic\nORDER BY topic ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -920,
+        -20
+      ],
+      "id": "d3a54c98-e0c1-4889-b54a-a6f7d09c28b5",
+      "name": "Tool - List Unique Blog Topics",
+      "credentials": {
+        "postgres": {
+          "id": "Oe9hfBFWx2gHKNW1",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to retrieve or aggregate structured metadata about Bitovi's blog articles by writing and executing SQL queries. You have read-only access to a table named 'blog_articles'.\n\nTable Schema: blog_articles\n- url (TEXT, PRIMARY KEY): The unique URL of the blog post.\n- title (TEXT): The title of the blog post.\n- author_name (TEXT): The name of the author.\n- date_published (TIMESTAMP): The date and time the article was published (format: 'YYYY-MM-DD HH24:MI:SS'). Used for sorting by recency.\n- date_modified (TIMESTAMP): The date and time the article was last modified.\n- topics (JSONB): A JSON array of strings representing topics/tags (e.g., '[\"DevOps\", \"AI\"]').\n    - To query for a single topic 'DevOps': WHERE topics @> '[\"DevOps\"]'\n    - To query for multiple topics 'DevOps' AND 'AI': WHERE topics @> '[\"DevOps\", \"AI\"]'\n    - **TOPIC MATCHING CLARIFICATION:** When a user specifies topics (e.g., \"AI and Agents\"), the query should filter based on the *actual topic strings present in the database* that correspond to the user's intent.\n        - For instance, if the user says \"AI and Agents,\" and the database contains topics like \"AI\" and \"AI Agents,\" the query should use these exact database topic strings (e.g., `WHERE topics @> '[\"AI\", \"AI Agents\"]'`).\n        - **IMPORTANT:** Topic matching in JSONB is case-sensitive. If unsure about the exact casing or phrasing of a topic that matches the user's intent, consider using the `List Unique Blog Topics` tool first to see available topics. Alternatively, if appropriate and the database topics are consistently cased (e.g., all lowercase or all title case), you might construct your SQL query to be case-insensitive for the *user's input part* before forming the JSONB array, but the final array in `@>` must match the database casing. Prefer using exact matches found via `List Unique Blog Topics`.\n- markdown_content (TEXT): The full markdown content of the article.\n    - IMPORTANT: Only select the 'markdown_content' column if the user explicitly asks for the full content of a *single* article, or if you need to summarize the latest article.\n    - AVOID selecting 'markdown_content' for multiple rows at once, as it can be very large and lead to processing issues.\n    - For querying *within* the content of articles, prefer the 'Vector Search' tool.\n\nConstruct your SQL query based on the user's question.\nExamples:\n- User asks for the latest blog post details (including content for summarization): \"SELECT url, title, author_name, date_published, markdown_content FROM blog_articles ORDER BY date_published DESC LIMIT 1;\"\n- User asks for articles about 'DevOps' (titles and links only): \"SELECT url, title, author_name, date_published FROM blog_articles WHERE topics @> '[\"DevOps\"]' ORDER BY date_published DESC;\"\n- User asks how many articles on 'AI': \"SELECT COUNT(*) AS article_count FROM blog_articles WHERE topics @> '[\"AI\"]';\"\n- User asks for articles by 'Mick McGrath': \"SELECT url, title, date_published FROM blog_articles WHERE author_name ILIKE 'Mick McGrath' ORDER BY date_published DESC;\"\n\nOnly select the columns necessary to answer the question. Pay close attention to when to select 'markdown_content'.\nAlways use precise SQL syntax.",
+        "operation": "executeQuery",
+        "query": "{{ $fromAI('sql_query') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -760,
+        -20
+      ],
+      "id": "9095a4d9-04c2-4d8b-8d78-fe076bbea352",
+      "name": "Tool - Query Metadata",
+      "credentials": {
+        "postgres": {
+          "id": "Oe9hfBFWx2gHKNW1",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "documents",
+        "filterType": "string",
+        "filterString": "=metadata->>url=like.{{ $json.url }}"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        820
+      ],
+      "id": "499db6cc-90fd-4f8e-8139-b685ca7c89a6",
+      "name": "Delete Existing Documents on Update",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "bbx9Ng0GYO8Jk8gY",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const currentJson = item.json;\n\n  const {\n    jsonLDString,\n    main_content,\n    topics1,\n    topics2,\n    ...baseData\n  } = currentJson;\n\n  const resultItem = { ...baseData };\n\n  if (jsonLDString) {\n    const datePublishedMatch = jsonLDString.match(/\"datePublished\"\\s*:\\s*\"([^\"]*)\"/);\n    const dateModifiedMatch = jsonLDString.match(/\"dateModified\"\\s*:\\s*\"([^\"]*)\"/);\n    resultItem.datePublished = datePublishedMatch ? datePublishedMatch[1] : null;\n    resultItem.dateModified = dateModifiedMatch ? dateModifiedMatch[1] : null;\n  }\n\n  resultItem.topics = [\n    ...(topics1 || []),\n    ...(topics2 || [])\n  ];\n\n  if (resultItem.markdown_content && typeof resultItem.markdown_content === 'string') {\n    let cleanedMarkdown = resultItem.markdown_content;\n\n    cleanedMarkdown = cleanedMarkdown.trim();\n    cleanedMarkdown = cleanedMarkdown.replace(/\\n\\s*\\n/g, '\\n\\n');\n    cleanedMarkdown = cleanedMarkdown.replace(/\\n{3,}/g, '\\n\\n');\n    cleanedMarkdown = cleanedMarkdown.replace(/<!--[\\s\\S]*?-->/g, '');\n\n    resultItem.markdown_content = cleanedMarkdown;\n  }\n\n  return resultItem;\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        780
+      ],
+      "id": "bfd9407b-a5ee-40d6-81b9-7ba90fd786a3",
+      "name": "Clean and Prepare Article Data JSON"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1280,
+        -40
+      ],
+      "id": "a80ad339-d5ac-42a8-9c1e-478c96e25e36",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "iDYiKj2i4uFXsnyF",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Store Chunks: Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Store Chunks: Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Check New or Updated Articles (via Postgres)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Schedule Trigger: Daily Blog Check": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Fetch Bitovi Sitemap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Fetch Bitovi Sitemap": {
+      "main": [
+        [
+          {
+            "node": "Sitemap XML to JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sitemap XML to JSON": {
+      "main": [
+        [
+          {
+            "node": "Split Out: Individual Blog URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out: Individual Blog URLs": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check New or Updated Articles (via Postgres)": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Fetch Blog Page HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Fetch Blog Page HTML": {
+      "main": [
+        [
+          {
+            "node": "Extract Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Content": {
+      "main": [
+        [
+          {
+            "node": "Convert to Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to Markdown": {
+      "main": [
+        [
+          {
+            "node": "Clean and Prepare Article Data JSON",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Logs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Store/Update Blog Article": {
+      "main": [
+        []
+      ]
+    },
+    "Create Blog Articles Table": {
+      "main": [
+        [
+          {
+            "node": "Create Documents Table and Match Function",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Chat Input": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool - List Unique Blog Topics": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool - Query Metadata": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Existing Documents on Update": {
+      "main": [
+        []
+      ]
+    },
+    "Clean and Prepare Article Data JSON": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Store/Update Blog Article",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Delete Existing Documents on Update",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store Chunks: Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3506df4b-fbc7-432e-8675-e65cf81e373e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9f2d7a55b7108623be016381baa69453016a38fa1c4d6abb80e36354d2504ac0"
+  },
+  "id": "oB6Prlw41K8IcB6z",
+  "tags": []
+}
