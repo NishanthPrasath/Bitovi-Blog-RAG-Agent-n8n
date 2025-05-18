@@ -53,6 +53,13 @@ The n8n workflow is divided into two main parts:
 2.  **Configure Credentials:** Ensure all necessary credentials (Postgres, Supabase, OpenAI) are correctly set up and linked within the imported workflow nodes.
 3.  **Database Schema Setup:** Make sure to run the initial nodes to set up database tables.
 4.  **Initial Data Ingestion:** Manually trigger the "Schedule Trigger" node in the workflow to populate the databases for the first time.
+
+## Chat with the Agent
+
+You can interact with the agent using the chat interface at the following link:
+
+https://bitovi-ai-agent-n8n.up.railway.app/webhook/42a94125-08ba-4f0d-ac6b-76bd9ec96267/chat
+
 <!---
 ## Demonstration
 
