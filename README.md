@@ -1,4 +1,5 @@
 # Bitovi Blog AI Agent - n8n RAG Workflow
+![image](https://github.com/user-attachments/assets/c98e2631-28b4-4bf3-ac62-9da4cca83619)
 
 ## Overview
 
